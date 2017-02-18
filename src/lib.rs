@@ -2,3 +2,7 @@
 //! The puzzle rules are expressed as constraints.
 
 extern crate bit_set;
+
+pub use puzzle::Puzzle;
+
+mod puzzle;
