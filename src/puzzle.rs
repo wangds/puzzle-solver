@@ -1,7 +1,8 @@
 //! The puzzle's state and rules.
 
+use ::VarToken;
+
 /// The puzzle to be solved.
-#[allow(dead_code)]
 pub struct Puzzle {
     // The number of variables in the puzzle.
     num_vars: usize,
@@ -19,5 +20,20 @@ impl Puzzle {
         Puzzle {
             num_vars: 0,
         }
+    }
+
+    /// Allocate a new puzzle variable, without inserting any
+    /// candidates.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut puzzle = puzzle_solver::Puzzle::new();
+    /// puzzle.new_var();
+    /// ```
+    pub fn new_var(&mut self) -> VarToken {
+        let var = VarToken(self.num_vars);
+        self.num_vars = self.num_vars + 1;
+        var
     }
 }

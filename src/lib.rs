@@ -5,4 +5,8 @@ extern crate bit_set;
 
 pub use puzzle::Puzzle;
 
+/// A puzzle variable token.
+#[derive(Copy,Clone,Debug,Eq,PartialEq)]
+pub struct VarToken(usize);
+
 mod puzzle;
