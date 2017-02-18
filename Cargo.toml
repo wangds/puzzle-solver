@@ -5,3 +5,4 @@ authors = ["David Wang <millimillenary@gmail.com>"]
 license = "MIT"
 
 [dependencies]
+bit-set = "*"
