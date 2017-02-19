@@ -6,6 +6,7 @@ extern crate bit_set;
 use std::ops::Index;
 
 pub use puzzle::Puzzle;
+pub use puzzle::PuzzleSearch;
 
 /// A puzzle variable token.
 #[derive(Copy,Clone,Debug,Eq,PartialEq)]

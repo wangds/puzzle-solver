@@ -1,6 +1,7 @@
 //! The puzzle's state and rules.
 
 use std::collections::BTreeSet;
+use std::ops::Index;
 use std::rc::Rc;
 
 use ::{Val,VarToken};
@@ -13,6 +14,14 @@ enum Candidates {
     Set(Rc<BTreeSet<Val>>),     // A variable with a list of candidates.
 }
 
+/// The state of a variable during the solution search.
+#[derive(Clone,Debug)]
+#[allow(dead_code)]
+enum VarState {
+    Assigned(Val),
+    Unassigned(Candidates),
+}
+
 /// The puzzle to be solved.
 pub struct Puzzle {
     // The number of variables in the puzzle.
@@ -21,6 +30,15 @@ pub struct Puzzle {
     // The list of candidates for each variable.
     candidates: Vec<Candidates>,
 }
+
+/// Intermediate puzzle search state.
+#[derive(Clone)]
+pub struct PuzzleSearch<'a> {
+    puzzle: &'a Puzzle,
+    vars: Vec<VarState>,
+}
+
+/*--------------------------------------------------------------*/
 
 impl Puzzle {
     /// Allocate a new puzzle.
@@ -224,6 +242,83 @@ impl Puzzle {
                 set.extend(candidates);
                 *cs = cs.intersection(&set).cloned().collect();
             },
+        }
+    }
+}
+
+/*--------------------------------------------------------------*/
+
+impl<'a> PuzzleSearch<'a> {
+    /// Allocate a new puzzle searcher.
+    #[allow(dead_code)]
+    fn new(puzzle: &'a Puzzle) -> Self {
+        let mut vars = Vec::with_capacity(puzzle.num_vars);
+        for c in puzzle.candidates.iter() {
+            vars.push(VarState::Unassigned(c.clone()));
+        }
+
+        PuzzleSearch {
+            puzzle: puzzle,
+            vars: vars,
+        }
+    }
+
+    /// Check if the variable has been assigned to a value.
+    pub fn is_assigned(&self, var: VarToken) -> bool {
+        let VarToken(idx) = var;
+        match &self.vars[idx] {
+            &VarState::Assigned(_) => true,
+            &VarState::Unassigned(_) => false,
+        }
+    }
+
+    /// Get the value assigned to a variable, or None.
+    ///
+    /// This should be used if the variable may potentially be
+    /// unassigned.  For example, when implementing constraints.
+    pub fn get_assigned(&self, var: VarToken) -> Option<Val> {
+        let VarToken(idx) = var;
+        match &self.vars[idx] {
+            &VarState::Assigned(val) => Some(val),
+            &VarState::Unassigned(_) => None,
+        }
+    }
+
+    /// Remove a single candidate from an unassigned variable.
+    pub fn remove_candidate(&mut self, var: VarToken, val: Val) {
+        let VarToken(idx) = var;
+        if let VarState::Unassigned(ref mut cs) = self.vars[idx] {
+            match cs {
+                &mut Candidates::None => return,
+                &mut Candidates::Value(v) => {
+                    if v == val {
+                        *cs = Candidates::None;
+                    }
+                },
+                &mut Candidates::Set(ref mut rc) => {
+                    if rc.contains(&val) {
+                        let mut set = Rc::make_mut(rc);
+                        set.remove(&val);
+                    }
+                },
+            }
+        }
+    }
+}
+
+impl<'a> Index<VarToken> for PuzzleSearch<'a> {
+    type Output = Val;
+
+    /// Get the value assigned to a variable.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the variable has not been assigned.
+    fn index(&self, var: VarToken) -> &Val {
+        let VarToken(idx) = var;
+        match &self.vars[idx] {
+            &VarState::Assigned(ref val) => val,
+            &VarState::Unassigned(_) => panic!("unassigned"),
         }
     }
 }
