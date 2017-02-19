@@ -3,6 +3,8 @@
 
 extern crate bit_set;
 
+use std::ops::Index;
+
 pub use puzzle::Puzzle;
 
 /// A puzzle variable token.
@@ -12,4 +14,18 @@ pub struct VarToken(usize);
 /// The type of a puzzle variable's value (i.e. the candidate type).
 pub type Val = i32;
 
+/// A dictionary mapping puzzle variables to the solution value.
+#[derive(Debug)]
+pub struct Solution {
+    vars: Vec<Val>,
+}
+
 mod puzzle;
+
+impl Index<VarToken> for Solution {
+    type Output = Val;
+    fn index(&self, var: VarToken) -> &Val {
+        let VarToken(idx) = var;
+        &self.vars[idx]
+    }
+}
