@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::ops::Index;
 use std::rc::Rc;
 
-use ::{Val,VarToken};
+use ::{Constraint,Val,VarToken};
 
 /// A collection of candidates.
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -29,6 +29,9 @@ pub struct Puzzle {
 
     // The list of candidates for each variable.
     candidates: Vec<Candidates>,
+
+    // The list of puzzle constraints.
+    constraints: Vec<Box<Constraint>>,
 }
 
 /// Intermediate puzzle search state.
@@ -52,6 +55,7 @@ impl Puzzle {
         Puzzle {
             num_vars: 0,
             candidates: Vec::new(),
+            constraints: Vec::new(),
         }
     }
 
@@ -243,6 +247,11 @@ impl Puzzle {
                 *cs = cs.intersection(&set).cloned().collect();
             },
         }
+    }
+
+    /// Add a constraint to the puzzle solution.
+    pub fn add_constraint(&mut self, constraint: Box<Constraint>) {
+        self.constraints.push(constraint);
     }
 }
 

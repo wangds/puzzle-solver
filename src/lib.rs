@@ -5,6 +5,7 @@ extern crate bit_set;
 
 use std::ops::Index;
 
+pub use constraint::Constraint;
 pub use puzzle::Puzzle;
 pub use puzzle::PuzzleSearch;
 
@@ -20,6 +21,8 @@ pub type Val = i32;
 pub struct Solution {
     vars: Vec<Val>,
 }
+
+pub mod constraint;
 
 mod puzzle;
 
