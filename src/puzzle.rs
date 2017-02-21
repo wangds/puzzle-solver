@@ -40,6 +40,10 @@ pub struct Puzzle {
 pub struct PuzzleSearch<'a> {
     puzzle: &'a Puzzle,
     vars: Vec<VarState>,
+
+    // A variable to be marked by constraints when updating the list
+    // of candidates.
+    modified: bool,
 }
 
 /*--------------------------------------------------------------*/
@@ -290,9 +294,12 @@ impl Puzzle {
     /// assert!(solution.is_some());
     /// ```
     pub fn solve_any(&self) -> Option<Solution> {
-        let mut search = PuzzleSearch::new(self);
         let mut solutions = Vec::with_capacity(1);
-        search.solve(1, &mut solutions);
+        if self.num_vars > 0 {
+            let mut search = PuzzleSearch::new(self);
+            search.solve(1, &mut solutions);
+        }
+
         solutions.pop()
     }
 
@@ -310,11 +317,13 @@ impl Puzzle {
     /// assert!(solution.is_none());
     /// ```
     pub fn solve_unique(&self) -> Option<Solution> {
-        let mut search = PuzzleSearch::new(self);
-        let mut solutions = Vec::with_capacity(2);
-        search.solve(2, &mut solutions);
-        if solutions.len() == 1 {
-            return solutions.pop();
+        if self.num_vars > 0 {
+            let mut search = PuzzleSearch::new(self);
+            let mut solutions = Vec::with_capacity(2);
+            search.solve(2, &mut solutions);
+            if solutions.len() == 1 {
+                return solutions.pop();
+            }
         }
 
         None
@@ -333,10 +342,30 @@ impl Puzzle {
     /// assert_eq!(solutions.len(), 4);
     /// ```
     pub fn solve_all(&self) -> Vec<Solution> {
-        let mut search = PuzzleSearch::new(self);
         let mut solutions = Vec::new();
-        search.solve(::std::usize::MAX, &mut solutions);
+        if self.num_vars > 0 {
+            let mut search = PuzzleSearch::new(self);
+            search.solve(::std::usize::MAX, &mut solutions);
+        }
+
         solutions
+    }
+
+    /// Take any obvious non-choices, using the constraints to
+    /// eliminate candidates.  Stops when it must start guessing.
+    /// Primarily for testing.
+    ///
+    /// Returns the intermediate puzzle search state, or None if a
+    /// contradiction was found.
+    pub fn step(&self) -> Option<PuzzleSearch> {
+        if self.num_vars > 0 {
+            let mut search = PuzzleSearch::new(self);
+            if search.constrain() {
+                return Some(search);
+            }
+        }
+
+        None
     }
 }
 
@@ -353,6 +382,7 @@ impl<'a> PuzzleSearch<'a> {
         PuzzleSearch {
             puzzle: puzzle,
             vars: vars,
+            modified: false,
         }
     }
 
@@ -386,12 +416,14 @@ impl<'a> PuzzleSearch<'a> {
                 &mut Candidates::Value(v) => {
                     if v == val {
                         *cs = Candidates::None;
+                        self.modified = true;
                     }
                 },
                 &mut Candidates::Set(ref mut rc) => {
                     if rc.contains(&val) {
                         let mut set = Rc::make_mut(rc);
                         set.remove(&val);
+                        self.modified = true;
                     }
                 },
             }
@@ -400,6 +432,10 @@ impl<'a> PuzzleSearch<'a> {
 
     /// Solve the puzzle, finding up to count solutions.
     fn solve(&mut self, count: usize, solutions: &mut Vec<Solution>) {
+        if !self.constrain() {
+            return;
+        }
+
         let next_unassigned = self.vars.iter().enumerate().min_by_key(
                 |&(_, vs)| match vs {
                     &VarState::Assigned(_) => ::std::usize::MAX,
@@ -414,7 +450,9 @@ impl<'a> PuzzleSearch<'a> {
 
             for val in cs.iter() {
                 let mut new = self.clone();
-                new.vars[idx] = VarState::Assigned(val);
+                if !new.assign(idx, val) {
+                    continue;
+                }
 
                 new.solve(count, solutions);
                 if solutions.len() >= count {
@@ -434,6 +472,78 @@ impl<'a> PuzzleSearch<'a> {
             solutions.push(Solution{ vars: vars });
         }
     }
+
+    /// Assign a variable (given by index) to a value.
+    ///
+    /// Returns false if a contradiction was found.
+    fn assign(&mut self, idx: usize, val: Val) -> bool {
+        let var = VarToken(idx);
+        self.vars[idx] = VarState::Assigned(val);
+        self.modified = true;
+
+        for constraint in self.puzzle.constraints.iter() {
+            if !constraint.on_assigned(self, var, val) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Take any obvious non-choices, using the constraints to
+    /// eliminate candidates.  Stops when it must start guessing.
+    ///
+    /// Returns false if a contradiction was found.
+    fn constrain(&mut self) -> bool {
+        let mut repeat = true;
+
+        while repeat || self.modified {
+            repeat = false;
+
+            // "Gimme" phase:
+            // - abort if any variables with 0 candidates,
+            // - assign variables with only 1 candidate.
+            // - repeat until no more gimmes found.
+            let cycle = self.vars.len();
+            let mut idx = 0;
+            let mut last_gimme = cycle - 1;
+            loop {
+                let gimme = match &self.vars[idx] {
+                    &VarState::Assigned(_) => None,
+                    &VarState::Unassigned(ref cs) => match cs.len() {
+                        0 => return false,
+                        1 => cs.iter().next(),
+                        _ => None,
+                    }
+                };
+
+                if let Some(val) = gimme {
+                    if !self.assign(idx, val) {
+                        return false;
+                    }
+                    repeat = true;
+                    last_gimme = idx;
+                } else if idx == last_gimme {
+                    break;
+                }
+
+                idx = if idx + 1 >= cycle { 0 } else { idx + 1 };
+            }
+
+            // Apply constraints.
+            if repeat || self.modified {
+                self.modified = false;
+
+                for constraint in self.puzzle.constraints.iter() {
+                    if !constraint.on_updated(self) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        true
+    }
 }
 
 impl<'a> Index<VarToken> for PuzzleSearch<'a> {
@@ -450,5 +560,19 @@ impl<'a> Index<VarToken> for PuzzleSearch<'a> {
             &VarState::Assigned(ref val) => val,
             &VarState::Unassigned(_) => panic!("unassigned"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ::Puzzle;
+
+    #[test]
+    fn test_no_vars() {
+        let sys = Puzzle::new();
+        sys.solve_any();
+        sys.solve_unique();
+        sys.solve_all();
+        sys.step();
     }
 }
