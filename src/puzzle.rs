@@ -1,10 +1,12 @@
 //! The puzzle's state and rules.
 
 use std::collections::BTreeSet;
+use std::iter;
+use std::iter::Iterator;
 use std::ops::Index;
 use std::rc::Rc;
 
-use ::{Constraint,Val,VarToken};
+use ::{Constraint,Solution,Val,VarToken};
 
 /// A collection of candidates.
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -16,7 +18,6 @@ enum Candidates {
 
 /// The state of a variable during the solution search.
 #[derive(Clone,Debug)]
-#[allow(dead_code)]
 enum VarState {
     Assigned(Val),
     Unassigned(Candidates),
@@ -39,6 +40,28 @@ pub struct Puzzle {
 pub struct PuzzleSearch<'a> {
     puzzle: &'a Puzzle,
     vars: Vec<VarState>,
+}
+
+/*--------------------------------------------------------------*/
+
+impl Candidates {
+    /// Count the number of candidates for a variable.
+    fn len(&self) -> usize {
+        match self {
+            &Candidates::None => 0,
+            &Candidates::Value(_) => 1,
+            &Candidates::Set(ref rc) => rc.len(),
+        }
+    }
+
+    /// Get an iterator over all of the candidates of a variable.
+    fn iter<'a>(&'a self) -> Box<Iterator<Item=Val> + 'a> {
+        match self {
+            &Candidates::None => Box::new(iter::empty()),
+            &Candidates::Value(val) => Box::new(iter::once(val)),
+            &Candidates::Set(ref rc) => Box::new(rc.iter().map(|x| *x)),
+        }
+    }
 }
 
 /*--------------------------------------------------------------*/
@@ -253,13 +276,74 @@ impl Puzzle {
     pub fn add_constraint(&mut self, constraint: Box<Constraint>) {
         self.constraints.push(constraint);
     }
+
+    /// Find any solution to the given puzzle.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut puzzle = puzzle_solver::Puzzle::new();
+    /// puzzle.new_var_with_candidates(&[1,2]);
+    /// puzzle.new_var_with_candidates(&[3,4]);
+    ///
+    /// let solution = puzzle.solve_any();
+    /// assert!(solution.is_some());
+    /// ```
+    pub fn solve_any(&self) -> Option<Solution> {
+        let mut search = PuzzleSearch::new(self);
+        let mut solutions = Vec::with_capacity(1);
+        search.solve(1, &mut solutions);
+        solutions.pop()
+    }
+
+    /// Find the solution to the given puzzle, verifying that it is
+    /// unique.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut puzzle = puzzle_solver::Puzzle::new();
+    /// puzzle.new_var_with_candidates(&[1,2]);
+    /// puzzle.new_var_with_candidates(&[3,4]);
+    ///
+    /// let solution = puzzle.solve_unique();
+    /// assert!(solution.is_none());
+    /// ```
+    pub fn solve_unique(&self) -> Option<Solution> {
+        let mut search = PuzzleSearch::new(self);
+        let mut solutions = Vec::with_capacity(2);
+        search.solve(2, &mut solutions);
+        if solutions.len() == 1 {
+            return solutions.pop();
+        }
+
+        None
+    }
+
+    /// Find all solutions to the given puzzle.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut puzzle = puzzle_solver::Puzzle::new();
+    /// puzzle.new_var_with_candidates(&[1,2]);
+    /// puzzle.new_var_with_candidates(&[3,4]);
+    ///
+    /// let solutions = puzzle.solve_all();
+    /// assert_eq!(solutions.len(), 4);
+    /// ```
+    pub fn solve_all(&self) -> Vec<Solution> {
+        let mut search = PuzzleSearch::new(self);
+        let mut solutions = Vec::new();
+        search.solve(::std::usize::MAX, &mut solutions);
+        solutions
+    }
 }
 
 /*--------------------------------------------------------------*/
 
 impl<'a> PuzzleSearch<'a> {
     /// Allocate a new puzzle searcher.
-    #[allow(dead_code)]
     fn new(puzzle: &'a Puzzle) -> Self {
         let mut vars = Vec::with_capacity(puzzle.num_vars);
         for c in puzzle.candidates.iter() {
@@ -311,6 +395,43 @@ impl<'a> PuzzleSearch<'a> {
                     }
                 },
             }
+        }
+    }
+
+    /// Solve the puzzle, finding up to count solutions.
+    fn solve(&mut self, count: usize, solutions: &mut Vec<Solution>) {
+        let next_unassigned = self.vars.iter().enumerate().min_by_key(
+                |&(_, vs)| match vs {
+                    &VarState::Assigned(_) => ::std::usize::MAX,
+                    &VarState::Unassigned(ref cs) => cs.len(),
+                });
+
+        if let Some((idx, &VarState::Unassigned(ref cs))) = next_unassigned {
+            if cs.len() == 0 {
+                // Contradiction.
+                return;
+            }
+
+            for val in cs.iter() {
+                let mut new = self.clone();
+                new.vars[idx] = VarState::Assigned(val);
+
+                new.solve(count, solutions);
+                if solutions.len() >= count {
+                    // Reached desired number of solutions.
+                    return;
+                }
+            }
+        } else {
+            // No unassigned variables remaining.
+            let mut vars = Vec::with_capacity(self.puzzle.num_vars);
+            for var in self.vars.iter() {
+                match var {
+                    &VarState::Assigned(val) => vars.push(val),
+                    &VarState::Unassigned(_) => unreachable!(),
+                }
+            }
+            solutions.push(Solution{ vars: vars });
         }
     }
 }
