@@ -2,11 +2,11 @@
 
 use std::collections::BTreeSet;
 use std::iter;
-use std::iter::Iterator;
 use std::ops::Index;
 use std::rc::Rc;
 
 use ::{Constraint,Solution,Val,VarToken};
+use constraint;
 
 /// A collection of candidates.
 #[derive(Clone,Debug,Eq,PartialEq)]
@@ -279,6 +279,22 @@ impl Puzzle {
     /// Add a constraint to the puzzle solution.
     pub fn add_constraint(&mut self, constraint: Box<Constraint>) {
         self.constraints.push(constraint);
+    }
+
+    /// Add an All Different constraint.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut send_more_money = puzzle_solver::Puzzle::new();
+    /// let vars = send_more_money.new_vars_with_candidates_1d(8,
+    ///         &[0,1,2,3,4,5,6,7,8,9]);
+    ///
+    /// send_more_money.all_different(&vars);
+    /// ```
+    pub fn all_different<'a, I>(&mut self, vars: I)
+            where I: IntoIterator<Item=&'a VarToken> {
+        self.add_constraint(Box::new(constraint::AllDifferent::new(vars)));
     }
 
     /// Find any solution to the given puzzle.

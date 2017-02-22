@@ -18,9 +18,10 @@ impl AllDifferent {
     ///
     /// puzzle_solver::constraint::AllDifferent::new(&vars);
     /// ```
-    pub fn new(vars: &[VarToken]) -> Self {
+    pub fn new<'a, I>(vars: I) -> Self
+            where I: IntoIterator<Item=&'a VarToken> {
         AllDifferent {
-            vars: vars.to_vec(),
+            vars: vars.into_iter().map(|&x| x).collect(),
         }
     }
 }
@@ -46,7 +47,6 @@ impl Constraint for AllDifferent {
 #[cfg(test)]
 mod tests {
     use ::{Puzzle,Val};
-    use super::AllDifferent;
 
     #[test]
     fn test_contradiction() {
@@ -54,7 +54,7 @@ mod tests {
         let v0 = puzzle.new_var_with_candidates(&[1]);
         let v1 = puzzle.new_var_with_candidates(&[1]);
 
-        puzzle.add_constraint(Box::new(AllDifferent::new(&[v0,v1])));
+        puzzle.all_different(&[v0,v1]);
 
         let solution = puzzle.solve_any();
         assert!(solution.is_none());
@@ -67,7 +67,7 @@ mod tests {
         let v1 = puzzle.new_var_with_candidates(&[1,2,3]);
         let v2 = puzzle.new_var_with_candidates(&[1,2,3]);
 
-        puzzle.add_constraint(Box::new(AllDifferent::new(&[v0,v1,v2])));
+        puzzle.all_different(&[v0,v1,v2]);
 
         let search = puzzle.step().expect("contradiction");
         assert_eq!(search[v0], 1);
