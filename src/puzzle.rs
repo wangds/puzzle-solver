@@ -407,6 +407,16 @@ impl<'a> PuzzleSearch<'a> {
         }
     }
 
+    /// Get an iterator over the candidates to an unassigned variable.
+    pub fn get_unassigned(&'a self, var: VarToken)
+            -> Box<Iterator<Item=Val> + 'a> {
+        let VarToken(idx) = var;
+        match &self.vars[idx] {
+            &VarState::Assigned(_) => Box::new(iter::empty()),
+            &VarState::Unassigned(ref cs) => cs.iter(),
+        }
+    }
+
     /// Remove a single candidate from an unassigned variable.
     pub fn remove_candidate(&mut self, var: VarToken, val: Val) {
         let VarToken(idx) = var;

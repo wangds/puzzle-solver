@@ -26,3 +26,7 @@ pub trait Constraint {
         true
     }
 }
+
+pub use self::alldifferent::AllDifferent;
+
+mod alldifferent;
