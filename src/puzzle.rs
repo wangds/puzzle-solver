@@ -1,5 +1,6 @@
 //! The puzzle's state and rules.
 
+use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::iter;
 use std::ops::Index;
@@ -27,6 +28,9 @@ enum VarState {
 pub struct Puzzle {
     // The number of variables in the puzzle.
     num_vars: usize,
+
+    // The number of guesses to solve the puzzle.
+    num_guesses: Cell<u32>,
 
     // The list of candidates for each variable.
     candidates: Vec<Candidates>,
@@ -81,6 +85,7 @@ impl Puzzle {
     pub fn new() -> Self {
         Puzzle {
             num_vars: 0,
+            num_guesses: Cell::new(0),
             candidates: Vec::new(),
             constraints: Vec::new(),
         }
@@ -309,8 +314,10 @@ impl Puzzle {
     /// let solution = puzzle.solve_any();
     /// assert!(solution.is_some());
     /// ```
-    pub fn solve_any(&self) -> Option<Solution> {
+    pub fn solve_any(&mut self) -> Option<Solution> {
         let mut solutions = Vec::with_capacity(1);
+
+        self.num_guesses.set(0);
         if self.num_vars > 0 {
             let mut search = PuzzleSearch::new(self);
             search.solve(1, &mut solutions);
@@ -332,7 +339,8 @@ impl Puzzle {
     /// let solution = puzzle.solve_unique();
     /// assert!(solution.is_none());
     /// ```
-    pub fn solve_unique(&self) -> Option<Solution> {
+    pub fn solve_unique(&mut self) -> Option<Solution> {
+        self.num_guesses.set(0);
         if self.num_vars > 0 {
             let mut search = PuzzleSearch::new(self);
             let mut solutions = Vec::with_capacity(2);
@@ -357,8 +365,10 @@ impl Puzzle {
     /// let solutions = puzzle.solve_all();
     /// assert_eq!(solutions.len(), 4);
     /// ```
-    pub fn solve_all(&self) -> Vec<Solution> {
+    pub fn solve_all(&mut self) -> Vec<Solution> {
         let mut solutions = Vec::new();
+
+        self.num_guesses.set(0);
         if self.num_vars > 0 {
             let mut search = PuzzleSearch::new(self);
             search.solve(::std::usize::MAX, &mut solutions);
@@ -373,7 +383,7 @@ impl Puzzle {
     ///
     /// Returns the intermediate puzzle search state, or None if a
     /// contradiction was found.
-    pub fn step(&self) -> Option<PuzzleSearch> {
+    pub fn step(&mut self) -> Option<PuzzleSearch> {
         if self.num_vars > 0 {
             let mut search = PuzzleSearch::new(self);
             if search.constrain() {
@@ -382,6 +392,11 @@ impl Puzzle {
         }
 
         None
+    }
+
+    /// Get the number of guesses taken to solve the last puzzle.
+    pub fn num_guesses(&self) -> u32 {
+        self.num_guesses.get()
     }
 }
 
@@ -475,6 +490,9 @@ impl<'a> PuzzleSearch<'a> {
             }
 
             for val in cs.iter() {
+                let num_guesses = self.puzzle.num_guesses.get() + 1;
+                self.puzzle.num_guesses.set(num_guesses);
+
                 let mut new = self.clone();
                 if !new.assign(idx, val) {
                     continue;
@@ -595,7 +613,7 @@ mod tests {
 
     #[test]
     fn test_no_vars() {
-        let sys = Puzzle::new();
+        let mut sys = Puzzle::new();
         sys.solve_any();
         sys.solve_unique();
         sys.solve_all();
