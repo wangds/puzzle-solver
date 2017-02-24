@@ -1,5 +1,7 @@
 //! All different implementation.
 
+use std::collections::HashSet;
+
 use ::{Constraint,PuzzleSearch,Val,VarToken};
 
 pub struct AllDifferent {
@@ -41,6 +43,26 @@ impl Constraint for AllDifferent {
 
         true
     }
+
+    fn on_updated(&self, search: &mut PuzzleSearch) -> bool {
+        // Build a table of which values can be assigned to which variables.
+        let mut num_unassigned = 0;
+        let mut all_candidates = HashSet::new();
+
+        for &var in self.vars.iter().filter(|&var| !search.is_assigned(*var)) {
+            num_unassigned = num_unassigned + 1;
+            for val in search.get_unassigned(var) {
+                all_candidates.insert(val);
+            }
+        }
+
+        if num_unassigned > all_candidates.len() {
+            // More unassigned variables than candidates, contradiction.
+            return false;
+        }
+
+        true
+    }
 }
 
 #[cfg(test)]
@@ -52,8 +74,9 @@ mod tests {
         let mut puzzle = Puzzle::new();
         let v0 = puzzle.new_var_with_candidates(&[1]);
         let v1 = puzzle.new_var_with_candidates(&[1]);
+        let v2 = puzzle.new_var_with_candidates(&[1,2,3]);
 
-        puzzle.all_different(&[v0,v1]);
+        puzzle.all_different(&[v0,v1,v2]);
 
         let solution = puzzle.solve_any();
         assert!(solution.is_none());
@@ -72,5 +95,18 @@ mod tests {
         assert_eq!(search[v0], 1);
         assert_eq!(search.get_unassigned(v1).collect::<Vec<Val>>(), &[2,3]);
         assert_eq!(search.get_unassigned(v2).collect::<Vec<Val>>(), &[2,3]);
+    }
+
+    #[test]
+    fn test_contradiction_by_length() {
+        let mut puzzle = Puzzle::new();
+        let v0 = puzzle.new_var_with_candidates(&[1,2]);
+        let v1 = puzzle.new_var_with_candidates(&[1,2]);
+        let v2 = puzzle.new_var_with_candidates(&[1,2]);
+
+        puzzle.all_different(&[v0,v1,v2]);
+
+        let search = puzzle.step();
+        assert!(search.is_none());
     }
 }
