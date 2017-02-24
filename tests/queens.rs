@@ -11,6 +11,10 @@ struct NoDiagonal {
 }
 
 impl Constraint for NoDiagonal {
+    fn vars<'a>(&'a self) -> Box<Iterator<Item=&'a VarToken> + 'a> {
+        Box::new(self.vars.iter())
+    }
+
     fn on_assigned(&self, search: &mut PuzzleSearch, var: VarToken, val: Val)
             -> bool {
         let y1 = self.vars.iter().position(|&v| v == var).expect("unreachable");

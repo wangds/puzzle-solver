@@ -9,6 +9,9 @@ use ::{PuzzleSearch,Val,VarToken};
 
 /// Constraint trait.
 pub trait Constraint {
+    /// An iterator over the variables that are involved in the constraint.
+    fn vars<'a>(&'a self) -> Box<Iterator<Item=&'a VarToken> + 'a>;
+
     /// Applied after a variable has been assigned.
     ///
     /// Returns true if the search should continue with these variable

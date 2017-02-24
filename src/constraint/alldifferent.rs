@@ -27,13 +27,12 @@ impl AllDifferent {
 }
 
 impl Constraint for AllDifferent {
-    fn on_assigned(&self, search: &mut PuzzleSearch, var: VarToken, val: Val)
-            -> bool {
-        // TODO: constraints should only be called if affected variables are modified.
-        if !self.vars.iter().any(|&v| v == var) {
-            return true;
-        }
+    fn vars<'a>(&'a self) -> Box<Iterator<Item=&'a VarToken> + 'a> {
+        Box::new(self.vars.iter())
+    }
 
+    fn on_assigned(&self, search: &mut PuzzleSearch, _var: VarToken, val: Val)
+            -> bool {
         for &var2 in self.vars.iter() {
             if !search.is_assigned(var2) {
                 search.remove_candidate(var2, val);
