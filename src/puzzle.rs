@@ -466,6 +466,35 @@ impl<'a> PuzzleSearch<'a> {
         }
     }
 
+    /// Set a variable to a known value.
+    pub fn set_candidate(&mut self, var: VarToken, val: Val) {
+        let VarToken(idx) = var;
+        match &mut self.vars[idx] {
+            &mut VarState::Assigned(_) => (),
+            &mut VarState::Unassigned(ref mut cs) => match cs {
+                &mut Candidates::None => return,
+                &mut Candidates::Value(v) => {
+                    if v != val {
+                        *cs = Candidates::None;
+                        self.wake.union_with(&self.puzzle.wake[idx]);
+                    }
+                },
+                &mut Candidates::Set(ref mut rc) => {
+                    if rc.contains(&val) {
+                        let mut set = Rc::make_mut(rc);
+                        set.clear();
+                        set.insert(val);
+                        self.wake.union_with(&self.puzzle.wake[idx]);
+                    } else {
+                        let mut set = Rc::make_mut(rc);
+                        set.clear();
+                        self.wake.union_with(&self.puzzle.wake[idx]);
+                    }
+                },
+            },
+        }
+    }
+
     /// Remove a single candidate from an unassigned variable.
     pub fn remove_candidate(&mut self, var: VarToken, val: Val) {
         let VarToken(idx) = var;
