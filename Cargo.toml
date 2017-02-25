@@ -2,7 +2,17 @@
 name = "puzzle-solver"
 version = "0.1.0"
 authors = ["David Wang <millimillenary@gmail.com>"]
+homepage = "https://github.com/wangds/puzzle-solver.git"
+repository = "https://github.com/wangds/puzzle-solver.git"
+documentation = "https://docs.rs/puzzle-solver/"
+description = "Solve logic puzzles by describing their constraints.  Suitable for puzzles such as Sudoku."
 license = "MIT"
+readme = "README.md"
+keywords = ["constraint", "puzzle", "sudoku"]
+categories = ["science"]
 
 [dependencies]
-bit-set = "*"
+bit-set = "0.4"
+
+[badges]
+travis-ci = { repository = "wangds/puzzle-solver" }
