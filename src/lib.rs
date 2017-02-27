@@ -43,6 +43,7 @@ pub struct Solution {
 
 pub mod constraint;
 
+mod intdiv;
 mod linexpr;
 mod puzzle;
 
