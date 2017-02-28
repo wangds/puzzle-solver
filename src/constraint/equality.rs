@@ -73,7 +73,6 @@ impl Constraint for Equality {
 #[cfg(test)]
 mod tests {
     use ::Puzzle;
-    use super::Equality;
 
     #[test]
     fn test_contradiction() {
@@ -81,7 +80,7 @@ mod tests {
         let v0 = puzzle.new_var_with_candidates(&[3]);
         let v1 = puzzle.new_var_with_candidates(&[0,1]);
 
-        puzzle.add_constraint(Box::new(Equality::new(v0 + 2 * v1 - 4)));
+        puzzle.equals(v0 + 2 * v1, 4);
 
         let search = puzzle.step();
         assert!(search.is_none());
@@ -93,7 +92,7 @@ mod tests {
         let v0 = puzzle.new_var_with_candidates(&[1]);
         let v1 = puzzle.new_var_with_candidates(&[1,2,3]);
 
-        puzzle.add_constraint(Box::new(Equality::new(v0 + v1 - 4)));
+        puzzle.equals(v0 + v1, 4);
 
         let search = puzzle.step().expect("contradiction");
         assert_eq!(search[v0], 1);

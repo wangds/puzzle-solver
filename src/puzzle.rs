@@ -8,7 +8,7 @@ use std::ops::Index;
 use std::rc::Rc;
 use bit_set::BitSet;
 
-use ::{Constraint,Solution,Val,VarToken};
+use ::{Constraint,LinExpr,Solution,Val,VarToken};
 use constraint;
 
 /// A collection of candidates.
@@ -312,6 +312,23 @@ impl Puzzle {
     pub fn all_different<'a, I>(&mut self, vars: I)
             where I: IntoIterator<Item=&'a VarToken> {
         self.add_constraint(Box::new(constraint::AllDifferent::new(vars)));
+    }
+
+    /// Add an Equality constraint.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut magic_square = puzzle_solver::Puzzle::new();
+    /// let vars = magic_square.new_vars_with_candidates_2d(3, 3,
+    ///         &[1,2,3,4,5,6,7,8,9]);
+    ///
+    /// magic_square.equals(vars[0][0] + vars[0][1] + vars[0][2], 15);
+    /// ```
+    pub fn equals<L,R>(&mut self, lhs: L, rhs: R)
+            where L: Into<LinExpr>, R: Into<LinExpr> {
+        self.add_constraint(Box::new(constraint::Equality::new(
+                lhs.into() - rhs.into())));
     }
 
     /// Find any solution to the given puzzle.
