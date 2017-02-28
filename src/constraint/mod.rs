@@ -31,5 +31,7 @@ pub trait Constraint {
 }
 
 pub use self::alldifferent::AllDifferent;
+pub use self::equality::Equality;
 
 mod alldifferent;
+mod equality;
