@@ -67,18 +67,16 @@ fn sendmoremoney_carry() {
     sys.equals(c3 + s + m, 10 *  m + o);
 
     let dict = sys.solve_unique().expect("solution");
-    println!("sendmoremoney_carry: {} guesses", sys.num_guesses());
     print_send_more_money(&dict, &vars);
     verify_send_more_money(&dict, &vars);
+    println!("sendmoremoney_carry: {} guesses", sys.num_guesses());
 }
 
-/*
 #[test]
 fn sendmoremoney_naive() {
     let (mut sys, vars) = make_send_more_money();
     let dict = sys.solve_unique().expect("solution");
-    println!("sendmoremoney_naive: {} guesses", sys.num_guesses());
     print_send_more_money(&dict, &vars);
     verify_send_more_money(&dict, &vars);
+    println!("sendmoremoney_naive: {} guesses", sys.num_guesses());
 }
-*/

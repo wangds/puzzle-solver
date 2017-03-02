@@ -483,6 +483,22 @@ impl<'a> PuzzleSearch<'a> {
         }
     }
 
+    /// Get the minimum and maximum values for variable.
+    pub fn get_min_max(&self, var: VarToken) -> Option<(Val, Val)> {
+        let VarToken(idx) = var;
+        match &self.vars[idx] {
+            &VarState::Assigned(val) => Some((val, val)),
+            &VarState::Unassigned(ref cs) => match cs {
+                &Candidates::None => None,
+                &Candidates::Value(val) => Some((val, val)),
+                &Candidates::Set(ref rc) => {
+                    rc.iter().cloned().min().into_iter()
+                        .zip(rc.iter().cloned().max()).next()
+                }
+            },
+        }
+    }
+
     /// Set a variable to a known value.
     pub fn set_candidate(&mut self, var: VarToken, val: Val) {
         let VarToken(idx) = var;
@@ -528,6 +544,35 @@ impl<'a> PuzzleSearch<'a> {
                     if rc.contains(&val) {
                         let mut set = Rc::make_mut(rc);
                         set.remove(&val);
+                        self.wake.union_with(&self.puzzle.wake[idx]);
+                    }
+                },
+            }
+        }
+    }
+
+    /// Bound an unassigned variable to the given range.
+    pub fn bound_candidate_range(&mut self, var: VarToken, min: Val, max: Val) {
+        let VarToken(idx) = var;
+        if let VarState::Unassigned(ref mut cs) = self.vars[idx] {
+            match cs {
+                &mut Candidates::None => return,
+                &mut Candidates::Value(v) => {
+                    if !(min <= v && v <= max) {
+                        *cs = Candidates::None;
+                        self.wake.union_with(&self.puzzle.wake[idx]);
+                    }
+                },
+                &mut Candidates::Set(ref mut rc) => {
+                    let &curr_min = rc.iter().min().expect("candidates");
+                    let &curr_max = rc.iter().max().expect("candidates");
+
+                    if curr_min < min || max < curr_max {
+                        let mut set = Rc::make_mut(rc);
+                        *set = set.iter()
+                            .filter(|&val| min <= *val && *val <= max)
+                            .cloned()
+                            .collect();
                         self.wake.union_with(&self.puzzle.wake[idx]);
                     }
                 },
