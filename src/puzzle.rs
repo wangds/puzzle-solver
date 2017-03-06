@@ -2,6 +2,7 @@
 
 use std::cell::Cell;
 use std::collections::BTreeSet;
+use std::fmt;
 use std::iter;
 use std::mem;
 use std::ops::Index;
@@ -692,6 +693,28 @@ impl<'a> PuzzleSearch<'a> {
         }
 
         true
+    }
+}
+
+impl<'a> fmt::Debug for PuzzleSearch<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "PuzzleSearch={{")?;
+        for (idx, var) in self.vars.iter().enumerate() {
+            writeln!(f, "")?;
+            match var {
+                &VarState::Assigned(val) => {
+                    write!(f, "  var {}: {}", idx, val)?;
+                },
+                &VarState::Unassigned(ref cs) => {
+                    write!(f, "  var {}:", idx)?;
+                    for val in cs.iter() {
+                        write!(f, " {}", val)?;
+                    }
+                },
+            }
+        }
+        write!(f, "}}")?;
+        Ok(())
     }
 }
 
