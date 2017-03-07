@@ -290,7 +290,9 @@ impl Puzzle {
     }
 
     /// Add a constraint to the puzzle solution.
-    pub fn add_constraint(&mut self, constraint: Box<Constraint>) {
+    pub fn add_constraint<T>(&mut self, constraint: T)
+            where T: Constraint + 'static {
+        let constraint = Box::new(constraint);
         let cidx = self.constraints.len();
         for &VarToken(idx) in constraint.vars() {
             self.wake[idx].insert(cidx);
@@ -312,7 +314,7 @@ impl Puzzle {
     /// ```
     pub fn all_different<'a, I>(&mut self, vars: I)
             where I: IntoIterator<Item=&'a VarToken> {
-        self.add_constraint(Box::new(constraint::AllDifferent::new(vars)));
+        self.add_constraint(constraint::AllDifferent::new(vars));
     }
 
     /// Add an Equality constraint.
@@ -328,8 +330,7 @@ impl Puzzle {
     /// ```
     pub fn equals<L,R>(&mut self, lhs: L, rhs: R)
             where L: Into<LinExpr>, R: Into<LinExpr> {
-        self.add_constraint(Box::new(constraint::Equality::new(
-                lhs.into() - rhs.into())));
+        self.add_constraint(constraint::Equality::new(lhs.into() - rhs.into()));
     }
 
     /// Find any solution to the given puzzle.

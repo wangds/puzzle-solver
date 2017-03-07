@@ -37,7 +37,7 @@ fn make_queens(n: usize) -> (Puzzle, Vec<VarToken>) {
     let vars = sys.new_vars_with_candidates_1d(n, &pos);
 
     sys.all_different(&vars);
-    sys.add_constraint(Box::new(NoDiagonal{ vars: vars.clone() }));
+    sys.add_constraint(NoDiagonal{ vars: vars.clone() });
     (sys, vars)
 }
 
