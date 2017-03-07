@@ -39,7 +39,7 @@ pub struct Puzzle {
     candidates: Vec<Candidates>,
 
     // The list of puzzle constraints.
-    constraints: Vec<Box<Constraint>>,
+    constraints: Vec<Rc<Constraint>>,
 
     // The list of constraints that each variable belongs to.  These
     // will be woken up when the variable's candidates are changed.
@@ -292,7 +292,7 @@ impl Puzzle {
     /// Add a constraint to the puzzle solution.
     pub fn add_constraint<T>(&mut self, constraint: T)
             where T: Constraint + 'static {
-        let constraint = Box::new(constraint);
+        let constraint = Rc::new(constraint);
         let cidx = self.constraints.len();
         for &VarToken(idx) in constraint.vars() {
             self.wake[idx].insert(cidx);
