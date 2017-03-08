@@ -1,5 +1,7 @@
 //! Equality implementation.
 
+use std::rc::Rc;
+
 use ::{Constraint,LinExpr,PuzzleSearch,Val,VarToken};
 use intdiv::IntDiv;
 
@@ -139,6 +141,16 @@ impl Constraint for Equality {
         }
 
         true
+    }
+
+    fn substitute(&self, from: VarToken, to: VarToken)
+            -> Option<Rc<Constraint>> {
+        let mut eqn = self.eqn.clone();
+        if let Some(coef) = eqn.coef.remove(&from) {
+            eqn = eqn + coef * to;
+        }
+
+        Some(Rc::new(Equality{ eqn: eqn }))
     }
 }
 

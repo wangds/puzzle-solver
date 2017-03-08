@@ -1,6 +1,7 @@
 //! All different implementation.
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use ::{Constraint,PuzzleSearch,Val,VarToken};
 
@@ -74,6 +75,19 @@ impl Constraint for AllDifferent {
         }
 
         true
+    }
+
+    fn substitute(&self, from: VarToken, to: VarToken)
+            -> Option<Rc<Constraint>> {
+        if let Some(idx) = self.vars.iter().position(|&var| var == from) {
+            if !self.vars.contains(&to) {
+                let mut new_vars = self.vars.clone();
+                new_vars[idx] = to;
+                return Some(Rc::new(AllDifferent{ vars: new_vars }));
+            }
+        }
+
+        None
     }
 }
 

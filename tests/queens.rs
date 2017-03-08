@@ -4,6 +4,7 @@
 
 extern crate puzzle_solver;
 
+use std::rc::Rc;
 use puzzle_solver::{Constraint,Puzzle,PuzzleSearch,Solution,Val,VarToken};
 
 struct NoDiagonal {
@@ -28,6 +29,11 @@ impl Constraint for NoDiagonal {
         }
 
         true
+    }
+
+    fn substitute(&self, _from: VarToken, _to: VarToken)
+            -> Option<Rc<Constraint>> {
+        unimplemented!();
     }
 }
 

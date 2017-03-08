@@ -1,9 +1,11 @@
 //! Constraint trait, and some common constraints.
 //!
 //! Note that all puzzle states visited during the solution search
-//! share the same set of constraints.  This means that you cannot
-//! store additional information about the state (e.g. caches) in the
-//! constraint to reuse later.
+//! share the same set of constraint objects.  This means that you
+//! cannot store additional information about the state (e.g. caches)
+//! in the constraint to reuse later.
+
+use std::rc::Rc;
 
 use ::{PuzzleSearch,Val,VarToken};
 
@@ -28,6 +30,14 @@ pub trait Constraint {
     fn on_updated(&self, _search: &mut PuzzleSearch) -> bool {
         true
     }
+
+    /// Substitute the "from" variable with the "to" variable.
+    ///
+    /// Returns a new constraint with all instances of "from" replaced
+    /// with "to", or None if a contradiction was found in the
+    /// process.
+    fn substitute(&self, from: VarToken, to: VarToken)
+            -> Option<Rc<Constraint>>;
 }
 
 pub use self::alldifferent::AllDifferent;
