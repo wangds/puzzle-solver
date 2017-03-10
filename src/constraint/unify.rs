@@ -60,7 +60,6 @@ impl Constraint for Unify {
 #[cfg(test)]
 mod tests {
     use ::Puzzle;
-    use super::Unify;
 
     #[test]
     fn test_unify_alldifferent() {
@@ -69,7 +68,7 @@ mod tests {
         let v1 = puzzle.new_var_with_candidates(&[1,2]);
 
         puzzle.all_different(&[v0, v1]);
-        puzzle.add_constraint(Unify::new(v0, v1));
+        puzzle.unify(v0, v1);
 
         let search = puzzle.step();
         assert!(search.is_none());
@@ -83,7 +82,7 @@ mod tests {
         let v2 = puzzle.new_var_with_candidates(&[1,2,3,4]);
 
         puzzle.equals(v0 + 2 * v1 + v2, 6);
-        puzzle.add_constraint(Unify::new(v0, v1));
+        puzzle.unify(v0, v1);
 
         let search = puzzle.step().expect("contradiction");
         assert_eq!(search[v0], 1);
@@ -98,8 +97,8 @@ mod tests {
         let v1 = puzzle.new_var_with_candidates(&[1,2,3,4]);
         let v2 = puzzle.new_var_with_candidates(&[1,2,3,4]);
 
-        puzzle.add_constraint(Unify::new(v0, v1));
-        puzzle.add_constraint(Unify::new(v1, v2));
+        puzzle.unify(v0, v1);
+        puzzle.unify(v1, v2);
 
         let search = puzzle.step().expect("contradiction");
         assert_eq!(search[v0], 1);

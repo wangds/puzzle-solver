@@ -333,6 +333,23 @@ impl Puzzle {
         self.add_constraint(constraint::Equality::new(lhs.into() - rhs.into()));
     }
 
+    /// Add a Unify constraint.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut send_more_money = puzzle_solver::Puzzle::new();
+    /// let carry = send_more_money.new_vars_with_candidates_1d(4, &[0,1]);
+    /// let vars = send_more_money.new_vars_with_candidates_1d(8,
+    ///         &[0,1,2,3,4,5,6,7,8,9]);
+    ///
+    /// let m = vars[4];
+    /// send_more_money.unify(m, carry[3]);
+    /// ```
+    pub fn unify(&mut self, var1: VarToken, var2: VarToken) {
+        self.add_constraint(constraint::Unify::new(var1, var2));
+    }
+
     /// Find any solution to the given puzzle.
     ///
     /// # Examples
