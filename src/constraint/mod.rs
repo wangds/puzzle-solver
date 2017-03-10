@@ -7,7 +7,7 @@
 
 use std::rc::Rc;
 
-use ::{PuzzleSearch,Val,VarToken};
+use ::{PsResult,PuzzleSearch,Val,VarToken};
 
 /// Constraint trait.
 pub trait Constraint {
@@ -15,29 +15,22 @@ pub trait Constraint {
     fn vars<'a>(&'a self) -> Box<Iterator<Item=&'a VarToken> + 'a>;
 
     /// Applied after a variable has been assigned.
-    ///
-    /// Returns true if the search should continue with these variable
-    /// assignments, or false if the constraint found a contradiction.
     fn on_assigned(&self, _search: &mut PuzzleSearch, _var: VarToken, _val: Val)
-            -> bool {
-        true
+            -> PsResult<()> {
+        Ok(())
     }
 
     /// Applied after a variable's candidates has been modified.
-    ///
-    /// Returns true if the search should continue with these variable
-    /// assignments, or false if the constraint found a contradiction.
-    fn on_updated(&self, _search: &mut PuzzleSearch) -> bool {
-        true
+    fn on_updated(&self, _search: &mut PuzzleSearch) -> PsResult<()> {
+        Ok(())
     }
 
     /// Substitute the "from" variable with the "to" variable.
     ///
     /// Returns a new constraint with all instances of "from" replaced
-    /// with "to", or None if a contradiction was found in the
-    /// process.
+    /// with "to", or Err if a contradiction was found.
     fn substitute(&self, from: VarToken, to: VarToken)
-            -> Option<Rc<Constraint>>;
+            -> PsResult<Rc<Constraint>>;
 }
 
 pub use self::alldifferent::AllDifferent;

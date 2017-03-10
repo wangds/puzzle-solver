@@ -35,6 +35,9 @@ pub struct LinExpr {
     coef: HashMap<VarToken, Coef>,
 }
 
+/// A result during a puzzle solution search (Err = contradiction).
+pub type PsResult<T> = Result<T, ()>;
+
 /// A dictionary mapping puzzle variables to the solution value.
 #[derive(Debug)]
 pub struct Solution {

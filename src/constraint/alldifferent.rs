@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use ::{Constraint,PuzzleSearch,Val,VarToken};
+use ::{Constraint,PsResult,PuzzleSearch,Val,VarToken};
 
 pub struct AllDifferent {
     vars: Vec<VarToken>,
@@ -34,18 +34,16 @@ impl Constraint for AllDifferent {
         Box::new(self.vars.iter())
     }
 
-    fn on_assigned(&self, search: &mut PuzzleSearch, _var: VarToken, val: Val)
-            -> bool {
-        for &var2 in self.vars.iter() {
-            if !search.is_assigned(var2) {
-                search.remove_candidate(var2, val);
-            }
+    fn on_assigned(&self, search: &mut PuzzleSearch, var: VarToken, val: Val)
+            -> PsResult<()> {
+        for &var2 in self.vars.iter().filter(|&v| *v != var) {
+            try!(search.remove_candidate(var2, val));
         }
 
-        true
+        Ok(())
     }
 
-    fn on_updated(&self, search: &mut PuzzleSearch) -> bool {
+    fn on_updated(&self, search: &mut PuzzleSearch) -> PsResult<()> {
         // Build a table of which values can be assigned to which variables.
         let mut num_unassigned = 0;
         let mut all_candidates = HashMap::new();
@@ -64,30 +62,30 @@ impl Constraint for AllDifferent {
 
         if num_unassigned > all_candidates.len() {
             // More unassigned variables than candidates, contradiction.
-            return false;
+            return Err(());
         } else if num_unassigned == all_candidates.len() {
             // As many as variables as candidates.
             for (&val, &opt) in all_candidates.iter() {
                 if let Some(var) = opt {
-                    search.set_candidate(var, val);
+                    try!(search.set_candidate(var, val));
                 }
             }
         }
 
-        true
+        Ok(())
     }
 
     fn substitute(&self, from: VarToken, to: VarToken)
-            -> Option<Rc<Constraint>> {
+            -> PsResult<Rc<Constraint>> {
         if let Some(idx) = self.vars.iter().position(|&var| var == from) {
             if !self.vars.contains(&to) {
                 let mut new_vars = self.vars.clone();
                 new_vars[idx] = to;
-                return Some(Rc::new(AllDifferent{ vars: new_vars }));
+                return Ok(Rc::new(AllDifferent{ vars: new_vars }));
             }
         }
 
-        None
+        Err(())
     }
 }
 

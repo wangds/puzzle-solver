@@ -9,7 +9,7 @@ use std::ops::Index;
 use std::rc::Rc;
 use bit_set::BitSet;
 
-use ::{Constraint,LinExpr,Solution,Val,VarToken};
+use ::{Constraint,LinExpr,PsResult,Solution,Val,VarToken};
 use constraint;
 
 /// A collection of candidates.
@@ -219,7 +219,6 @@ impl Puzzle {
             &Candidates::Set(_) => (),
         }
 
-        // Why you dumb Rust?
         if let Candidates::Set(ref mut rc) = self.candidates[idx] {
             let cs = Rc::get_mut(rc).expect("unique");
             cs.extend(candidates);
@@ -417,7 +416,7 @@ impl Puzzle {
     pub fn step(&mut self) -> Option<PuzzleSearch> {
         if self.num_vars > 0 {
             let mut search = PuzzleSearch::new(self);
-            if search.constrain() {
+            if search.constrain().is_ok() {
                 return Some(search);
             }
         }
@@ -486,105 +485,131 @@ impl<'a> PuzzleSearch<'a> {
     }
 
     /// Get the minimum and maximum values for variable.
-    pub fn get_min_max(&self, var: VarToken) -> Option<(Val, Val)> {
+    pub fn get_min_max(&self, var: VarToken) -> PsResult<(Val, Val)> {
         let VarToken(idx) = var;
         match &self.vars[idx] {
-            &VarState::Assigned(val) => Some((val, val)),
+            &VarState::Assigned(val) => Ok((val, val)),
             &VarState::Unassigned(ref cs) => match cs {
-                &Candidates::None => None,
-                &Candidates::Value(val) => Some((val, val)),
+                &Candidates::None => Err(()),
+                &Candidates::Value(val) => Ok((val, val)),
                 &Candidates::Set(ref rc) => {
                     rc.iter().cloned().min().into_iter()
                         .zip(rc.iter().cloned().max()).next()
+                        .ok_or(())
                 }
             },
         }
     }
 
-    /// Set a variable to a known value.
-    pub fn set_candidate(&mut self, var: VarToken, val: Val) {
+    /// Set a variable to a value.
+    pub fn set_candidate(&mut self, var: VarToken, val: Val)
+            -> PsResult<()> {
         let VarToken(idx) = var;
-        match &mut self.vars[idx] {
-            &mut VarState::Assigned(_) => (),
-            &mut VarState::Unassigned(ref mut cs) => match cs {
-                &mut Candidates::None => return,
-                &mut Candidates::Value(v) => {
-                    if v != val {
-                        *cs = Candidates::None;
-                        self.wake.union_with(&self.puzzle.wake[idx]);
-                    }
-                },
-                &mut Candidates::Set(ref mut rc) => {
-                    if rc.contains(&val) {
-                        let mut set = Rc::make_mut(rc);
-                        set.clear();
-                        set.insert(val);
-                        self.wake.union_with(&self.puzzle.wake[idx]);
-                    } else {
-                        let mut set = Rc::make_mut(rc);
-                        set.clear();
-                        self.wake.union_with(&self.puzzle.wake[idx]);
-                    }
-                },
+
+        match &self.vars[idx] {
+            &VarState::Assigned(v) => return bool_to_result(v == val),
+            &VarState::Unassigned(ref cs) => match cs {
+                &Candidates::None => return Err(()),
+                &Candidates::Value(v) => return bool_to_result(v == val),
+                &Candidates::Set(_) => (),
             },
         }
-    }
 
-    /// Remove a single candidate from an unassigned variable.
-    pub fn remove_candidate(&mut self, var: VarToken, val: Val) {
-        let VarToken(idx) = var;
-        if let VarState::Unassigned(ref mut cs) = self.vars[idx] {
-            match cs {
-                &mut Candidates::None => return,
-                &mut Candidates::Value(v) => {
-                    if v == val {
-                        *cs = Candidates::None;
-                        self.wake.union_with(&self.puzzle.wake[idx]);
-                    }
-                },
-                &mut Candidates::Set(ref mut rc) => {
-                    if rc.contains(&val) {
-                        let mut set = Rc::make_mut(rc);
-                        set.remove(&val);
-                        self.wake.union_with(&self.puzzle.wake[idx]);
-                    }
-                },
+        if let &mut VarState::Unassigned(Candidates::Set(ref mut rc))
+                = &mut self.vars[idx] {
+            if rc.contains(&val) {
+                let mut set = Rc::make_mut(rc);
+                set.clear();
+                set.insert(val);
+                self.wake.union_with(&self.puzzle.wake[idx]);
+                Ok(())
+            } else {
+                Err(())
             }
+        } else {
+            unreachable!();
         }
     }
 
-    /// Bound an unassigned variable to the given range.
-    pub fn bound_candidate_range(&mut self, var: VarToken, min: Val, max: Val) {
+    /// Remove a single candidate from a variable.
+    pub fn remove_candidate(&mut self, var: VarToken, val: Val)
+            -> PsResult<()> {
         let VarToken(idx) = var;
-        if let VarState::Unassigned(ref mut cs) = self.vars[idx] {
-            match cs {
-                &mut Candidates::None => return,
-                &mut Candidates::Value(v) => {
-                    if !(min <= v && v <= max) {
-                        *cs = Candidates::None;
-                        self.wake.union_with(&self.puzzle.wake[idx]);
-                    }
-                },
-                &mut Candidates::Set(ref mut rc) => {
-                    let &curr_min = rc.iter().min().expect("candidates");
-                    let &curr_max = rc.iter().max().expect("candidates");
 
-                    if curr_min < min || max < curr_max {
-                        let mut set = Rc::make_mut(rc);
-                        *set = set.iter()
-                            .filter(|&val| min <= *val && *val <= max)
-                            .cloned()
-                            .collect();
-                        self.wake.union_with(&self.puzzle.wake[idx]);
-                    }
-                },
+        match &self.vars[idx] {
+            &VarState::Assigned(v) => return bool_to_result(v != val),
+            &VarState::Unassigned(ref cs) => match cs {
+                &Candidates::None => return Err(()),
+                &Candidates::Value(v) => return bool_to_result(v != val),
+                &Candidates::Set(_) => (),
+            },
+        }
+
+        if let &mut VarState::Unassigned(Candidates::Set(ref mut rc))
+                = &mut self.vars[idx] {
+            if rc.contains(&val) {
+                let mut set = Rc::make_mut(rc);
+                set.remove(&val);
+                self.wake.union_with(&self.puzzle.wake[idx]);
             }
+            bool_to_result(!rc.is_empty())
+        } else {
+            unreachable!();
+        }
+    }
+
+    /// Bound an variable to the given range.
+    pub fn bound_candidate_range(&mut self, var: VarToken, min: Val, max: Val)
+            -> PsResult<(Val, Val)> {
+        let VarToken(idx) = var;
+
+        match &self.vars[idx] {
+            &VarState::Assigned(v) =>
+                if min <= v && v <= max {
+                    return Ok((v, v))
+                } else {
+                    return Err(())
+                },
+            &VarState::Unassigned(ref cs) => match cs {
+                &Candidates::None => return Err(()),
+                &Candidates::Value(v) =>
+                    if min <= v && v <= max {
+                        return Ok((v, v))
+                    } else {
+                        return Err(())
+                    },
+                &Candidates::Set(_) => (),
+            },
+        }
+
+        if let &mut VarState::Unassigned(Candidates::Set(ref mut rc))
+                = &mut self.vars[idx] {
+            let &curr_min = rc.iter().min().expect("candidates");
+            let &curr_max = rc.iter().max().expect("candidates");
+
+            if curr_min < min || max < curr_max {
+                {
+                    let mut set = Rc::make_mut(rc);
+                    *set = set.iter()
+                        .filter(|&val| min <= *val && *val <= max)
+                        .cloned()
+                        .collect();
+                    self.wake.union_with(&self.puzzle.wake[idx]);
+                }
+                rc.iter().cloned().min().into_iter()
+                    .zip(rc.iter().cloned().max()).next()
+                    .ok_or(())
+            } else {
+                Ok((curr_min, curr_max))
+            }
+        } else {
+            unreachable!();
         }
     }
 
     /// Solve the puzzle, finding up to count solutions.
     fn solve(&mut self, count: usize, solutions: &mut Vec<Solution>) {
-        if !self.constrain() {
+        if self.constrain().is_err() {
             return;
         }
 
@@ -605,7 +630,7 @@ impl<'a> PuzzleSearch<'a> {
                 self.puzzle.num_guesses.set(num_guesses);
 
                 let mut new = self.clone();
-                if !new.assign(idx, val) {
+                if new.assign(idx, val).is_err() {
                     continue;
                 }
 
@@ -629,29 +654,23 @@ impl<'a> PuzzleSearch<'a> {
     }
 
     /// Assign a variable (given by index) to a value.
-    ///
-    /// Returns false if a contradiction was found.
-    fn assign(&mut self, idx: usize, val: Val) -> bool {
+    fn assign(&mut self, idx: usize, val: Val) -> PsResult<()> {
         let var = VarToken(idx);
         self.vars[idx] = VarState::Assigned(val);
         self.wake.union_with(&self.puzzle.wake[idx]);
 
         for (cidx, constraint) in self.puzzle.constraints.iter().enumerate() {
             if self.puzzle.wake[idx].contains(cidx) {
-                if !constraint.on_assigned(self, var, val) {
-                    return false;
-                }
+                try!(constraint.on_assigned(self, var, val));
             }
         }
 
-        true
+        Ok(())
     }
 
     /// Take any obvious non-choices, using the constraints to
     /// eliminate candidates.  Stops when it must start guessing.
-    ///
-    /// Returns false if a contradiction was found.
-    fn constrain(&mut self) -> bool {
+    fn constrain(&mut self) -> PsResult<()> {
         while !self.wake.is_empty() {
             // "Gimme" phase:
             // - abort if any variables with 0 candidates,
@@ -664,16 +683,14 @@ impl<'a> PuzzleSearch<'a> {
                 let gimme = match &self.vars[idx] {
                     &VarState::Assigned(_) => None,
                     &VarState::Unassigned(ref cs) => match cs.len() {
-                        0 => return false,
+                        0 => return Err(()),
                         1 => cs.iter().next(),
                         _ => None,
                     }
                 };
 
                 if let Some(val) = gimme {
-                    if !self.assign(idx, val) {
-                        return false;
-                    }
+                    try!(self.assign(idx, val));
                     last_gimme = idx;
                 } else if idx == last_gimme {
                     break;
@@ -686,14 +703,12 @@ impl<'a> PuzzleSearch<'a> {
             if !self.wake.is_empty() {
                 let wake = mem::replace(&mut self.wake, BitSet::new());
                 for cidx in wake.iter() {
-                    if !self.puzzle.constraints[cidx].on_updated(self) {
-                        return false;
-                    }
+                    try!(self.puzzle.constraints[cidx].on_updated(self));
                 }
             }
         }
 
-        true
+        Ok(())
     }
 }
 
@@ -733,6 +748,14 @@ impl<'a> Index<VarToken> for PuzzleSearch<'a> {
             &VarState::Assigned(ref val) => val,
             &VarState::Unassigned(_) => panic!("unassigned"),
         }
+    }
+}
+
+fn bool_to_result(cond: bool) -> PsResult<()> {
+    if cond {
+        Ok(())
+    } else {
+        Err(())
     }
 }
 

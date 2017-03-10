@@ -5,7 +5,7 @@
 extern crate puzzle_solver;
 
 use std::rc::Rc;
-use puzzle_solver::{Constraint,Puzzle,PuzzleSearch,Solution,Val,VarToken};
+use puzzle_solver::*;
 
 struct NoDiagonal {
     vars: Vec<VarToken>,
@@ -17,22 +17,22 @@ impl Constraint for NoDiagonal {
     }
 
     fn on_assigned(&self, search: &mut PuzzleSearch, var: VarToken, val: Val)
-            -> bool {
+            -> PsResult<()> {
         let y1 = self.vars.iter().position(|&v| v == var).expect("unreachable");
         for (y2, &var2) in self.vars.iter().enumerate() {
             if !search.is_assigned(var2) {
                 let x1 = val;
                 let dy = (y1 as Val) - (y2 as Val);
-                search.remove_candidate(var2, x1 - dy);
-                search.remove_candidate(var2, x1 + dy);
+                try!(search.remove_candidate(var2, x1 - dy));
+                try!(search.remove_candidate(var2, x1 + dy));
             }
         }
 
-        true
+        Ok(())
     }
 
     fn substitute(&self, _from: VarToken, _to: VarToken)
-            -> Option<Rc<Constraint>> {
+            -> PsResult<Rc<Constraint>> {
         unimplemented!();
     }
 }

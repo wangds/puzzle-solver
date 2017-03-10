@@ -2,7 +2,7 @@
 
 use std::rc::Rc;
 
-use ::{Constraint,LinExpr,PuzzleSearch,Val,VarToken};
+use ::{Constraint,LinExpr,PsResult,PuzzleSearch,Val,VarToken};
 use intdiv::IntDiv;
 
 pub struct Equality {
@@ -36,7 +36,7 @@ impl Constraint for Equality {
     }
 
     fn on_assigned(&self, search: &mut PuzzleSearch, _: VarToken, _: Val)
-            -> bool {
+            -> PsResult<()> {
         let mut sum = self.eqn.constant;
         let mut unassigned_var = None;
 
@@ -47,7 +47,7 @@ impl Constraint for Equality {
                 // If we find more than one unassigned variable,
                 // cannot assign any other variables.
                 if unassigned_var.is_some() {
-                    return true;
+                    return Ok(());
                 } else {
                     unassigned_var = Some((var, coef));
                 }
@@ -59,34 +59,31 @@ impl Constraint for Equality {
             // sum + coef * var = 0.
             let val = -sum / coef;
             if sum + coef * val == 0 {
-                search.set_candidate(var, val);
+                try!(search.set_candidate(var, val));
             } else {
-                return false;
+                return Err(());
             }
         } else {
             if sum != 0 {
-                return false;
+                return Err(());
             }
         }
 
-        true
+        Ok(())
     }
 
-    fn on_updated(&self, search: &mut PuzzleSearch) -> bool {
+    fn on_updated(&self, search: &mut PuzzleSearch) -> PsResult<()> {
         let mut sum_min = self.eqn.constant;
         let mut sum_max = self.eqn.constant;
 
         for (&var, &coef) in self.eqn.coef.iter() {
-            if let Some((min_val, max_val)) = search.get_min_max(var) {
-                if coef > 0 {
-                    sum_min += coef * min_val;
-                    sum_max += coef * max_val;
-                } else {
-                    sum_min += coef * max_val;
-                    sum_max += coef * min_val;
-                }
+            let (min_val, max_val) = try!(search.get_min_max(var));
+            if coef > 0 {
+                sum_min += coef * min_val;
+                sum_max += coef * max_val;
             } else {
-                return false;
+                sum_min += coef * max_val;
+                sum_max += coef * min_val;
             }
         }
 
@@ -98,7 +95,7 @@ impl Constraint for Equality {
         while iters > 0 {
             iters = iters - 1;
             if !(sum_min <= 0 && 0 <= sum_max) {
-                return false;
+                return Err(());
             }
 
             let (&var, &coef) = iter.next().expect("cycle");
@@ -106,51 +103,44 @@ impl Constraint for Equality {
                 continue;
             }
 
-            if let Some((min_val, max_val)) = search.get_min_max(var) {
-                let min_bnd;
-                let max_bnd;
+            let (min_val, max_val) = try!(search.get_min_max(var));
+            let (min_bnd, max_bnd);
+
+            if coef > 0 {
+                min_bnd = (coef * max_val - sum_max).div_round_up(coef);
+                max_bnd = (coef * min_val - sum_min).div_round_down(coef);
+            } else {
+                min_bnd = (coef * max_val - sum_min).div_round_up(coef);
+                max_bnd = (coef * min_val - sum_max).div_round_down(coef);
+            }
+
+            if min_val < min_bnd || max_bnd < max_val {
+                let (new_min, new_max)
+                    = try!(search.bound_candidate_range(var, min_bnd, max_bnd));
 
                 if coef > 0 {
-                    min_bnd = (coef * max_val - sum_max).div_round_up(coef);
-                    max_bnd = (coef * min_val - sum_min).div_round_down(coef);
+                    sum_min = sum_min + coef * (new_min - min_val);
+                    sum_max = sum_max + coef * (new_max - max_val);
                 } else {
-                    min_bnd = (coef * max_val - sum_min).div_round_up(coef);
-                    max_bnd = (coef * min_val - sum_max).div_round_down(coef);
+                    sum_min = sum_min + coef * (new_max - max_val);
+                    sum_max = sum_max + coef * (new_min - min_val);
                 }
 
-                if min_val < min_bnd || max_bnd < max_val {
-                    search.bound_candidate_range(var, min_bnd, max_bnd);
-
-                    if let Some((new_min, new_max)) = search.get_min_max(var) {
-                        if coef > 0 {
-                            sum_min = sum_min + coef * (new_min - min_val);
-                            sum_max = sum_max + coef * (new_max - max_val);
-                        } else {
-                            sum_min = sum_min + coef * (new_max - max_val);
-                            sum_max = sum_max + coef * (new_min - min_val);
-                        }
-                    } else {
-                        return false;
-                    }
-
-                    iters = self.eqn.coef.len();
-                }
-            } else {
-                return false;
+                iters = self.eqn.coef.len();
             }
         }
 
-        true
+        Ok(())
     }
 
     fn substitute(&self, from: VarToken, to: VarToken)
-            -> Option<Rc<Constraint>> {
+            -> PsResult<Rc<Constraint>> {
         let mut eqn = self.eqn.clone();
         if let Some(coef) = eqn.coef.remove(&from) {
             eqn = eqn + coef * to;
         }
 
-        Some(Rc::new(Equality{ eqn: eqn }))
+        Ok(Rc::new(Equality{ eqn: eqn }))
     }
 }
 
