@@ -40,9 +40,16 @@ pub struct Puzzle {
 
     // The list of puzzle constraints.
     constraints: Vec<Rc<Constraint>>,
+}
 
-    // The list of constraints that each variable belongs to.  These
-    // will be woken up when the variable's candidates are changed.
+/// The puzzle constraints, and the variables that wake them up.
+struct PuzzleConstraints {
+    // The list of puzzle constraints, possibly with variables
+    // substituted out.
+    constraints: Vec<Rc<Constraint>>,
+
+    // The list of constraints that each variable affects.  These will
+    // be woken up when the variable's candidates are changed.
     wake: Vec<BitSet>,
 }
 
@@ -50,6 +57,7 @@ pub struct Puzzle {
 #[derive(Clone)]
 pub struct PuzzleSearch<'a> {
     puzzle: &'a Puzzle,
+    constraints: Rc<PuzzleConstraints>,
     vars: Vec<VarState>,
 
     // The list of constraints that need to be re-evaluated.
@@ -94,7 +102,6 @@ impl Puzzle {
             num_guesses: Cell::new(0),
             candidates: Vec::new(),
             constraints: Vec::new(),
-            wake: Vec::new(),
         }
     }
 
@@ -111,7 +118,6 @@ impl Puzzle {
         let var = VarToken(self.num_vars);
         self.num_vars = self.num_vars + 1;
         self.candidates.push(Candidates::None);
-        self.wake.push(BitSet::new());
         var
     }
 
@@ -291,13 +297,7 @@ impl Puzzle {
     /// Add a constraint to the puzzle solution.
     pub fn add_constraint<T>(&mut self, constraint: T)
             where T: Constraint + 'static {
-        let constraint = Rc::new(constraint);
-        let cidx = self.constraints.len();
-        for &VarToken(idx) in constraint.vars() {
-            self.wake[idx].insert(cidx);
-        }
-
-        self.constraints.push(constraint);
+        self.constraints.push(Rc::new(constraint));
     }
 
     /// Add an All Different constraint.
@@ -432,22 +432,47 @@ impl Puzzle {
 
 /*--------------------------------------------------------------*/
 
+impl PuzzleConstraints {
+    /// Allocate a new puzzle constraint container.
+    fn new(puzzle: &Puzzle) -> Self {
+        let wake = Self::init_wake(&puzzle.constraints, puzzle.num_vars);
+        PuzzleConstraints {
+            constraints: puzzle.constraints.clone(),
+            wake: wake,
+        }
+    }
+
+    /// Determine which variables wake up which constraints.
+    fn init_wake(constraints: &Vec<Rc<Constraint>>, num_vars: usize)
+            -> Vec<BitSet> {
+        let mut wake = vec![BitSet::new(); num_vars];
+        for cidx in 0..constraints.len() {
+            for &VarToken(idx) in constraints[cidx].vars() {
+                wake[idx].insert(cidx);
+            }
+        }
+
+        wake
+    }
+}
+
+/*--------------------------------------------------------------*/
+
 impl<'a> PuzzleSearch<'a> {
     /// Allocate a new puzzle searcher.
     fn new(puzzle: &'a Puzzle) -> Self {
-        let mut vars = Vec::with_capacity(puzzle.num_vars);
+        let constraints = PuzzleConstraints::new(puzzle);
+        let vars = puzzle.candidates.iter().map(|cs|
+                VarState::Unassigned(cs.clone())).collect();
         let mut wake = BitSet::new();
 
-        for c in puzzle.candidates.iter() {
-            vars.push(VarState::Unassigned(c.clone()));
-        }
-
-        for cidx in 0..puzzle.constraints.len() {
+        for cidx in 0..constraints.constraints.len() {
             wake.insert(cidx);
         }
 
         PuzzleSearch {
             puzzle: puzzle,
+            constraints: Rc::new(constraints),
             vars: vars,
             wake: wake,
         }
@@ -521,7 +546,7 @@ impl<'a> PuzzleSearch<'a> {
                 let mut set = Rc::make_mut(rc);
                 set.clear();
                 set.insert(val);
-                self.wake.union_with(&self.puzzle.wake[idx]);
+                self.wake.union_with(&self.constraints.wake[idx]);
                 Ok(())
             } else {
                 Err(())
@@ -550,7 +575,7 @@ impl<'a> PuzzleSearch<'a> {
             if rc.contains(&val) {
                 let mut set = Rc::make_mut(rc);
                 set.remove(&val);
-                self.wake.union_with(&self.puzzle.wake[idx]);
+                self.wake.union_with(&self.constraints.wake[idx]);
             }
             bool_to_result(!rc.is_empty())
         } else {
@@ -594,7 +619,7 @@ impl<'a> PuzzleSearch<'a> {
                         .filter(|&val| min <= *val && *val <= max)
                         .cloned()
                         .collect();
-                    self.wake.union_with(&self.puzzle.wake[idx]);
+                    self.wake.union_with(&self.constraints.wake[idx]);
                 }
                 rc.iter().cloned().min().into_iter()
                     .zip(rc.iter().cloned().max()).next()
@@ -657,10 +682,11 @@ impl<'a> PuzzleSearch<'a> {
     fn assign(&mut self, idx: usize, val: Val) -> PsResult<()> {
         let var = VarToken(idx);
         self.vars[idx] = VarState::Assigned(val);
-        self.wake.union_with(&self.puzzle.wake[idx]);
+        self.wake.union_with(&self.constraints.wake[idx]);
 
-        for (cidx, constraint) in self.puzzle.constraints.iter().enumerate() {
-            if self.puzzle.wake[idx].contains(cidx) {
+        for cidx in 0..self.constraints.constraints.len() {
+            if self.constraints.wake[idx].contains(cidx) {
+                let constraint = self.constraints.constraints[cidx].clone();
                 try!(constraint.on_assigned(self, var, val));
             }
         }
@@ -703,7 +729,8 @@ impl<'a> PuzzleSearch<'a> {
             if !self.wake.is_empty() {
                 let wake = mem::replace(&mut self.wake, BitSet::new());
                 for cidx in wake.iter() {
-                    try!(self.puzzle.constraints[cidx].on_updated(self));
+                    let constraint = self.constraints.constraints[cidx].clone();
+                    try!(constraint.on_updated(self));
                 }
             }
         }
