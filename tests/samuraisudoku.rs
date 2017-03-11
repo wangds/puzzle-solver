@@ -47,10 +47,10 @@ fn make_samurai_sudoku(board: &Board) -> (Puzzle, SamuraiVars) {
 
     for y in 0..SQRT_SIZE {
         for x in 0..SQRT_SIZE {
-            sys.equals(mid[0 * SQRT_SIZE + y][0 * SQRT_SIZE + x], tl[2 * SQRT_SIZE + y][2 * SQRT_SIZE + x]);
-            sys.equals(mid[0 * SQRT_SIZE + y][2 * SQRT_SIZE + x], tr[2 * SQRT_SIZE + y][0 * SQRT_SIZE + x]);
-            sys.equals(mid[2 * SQRT_SIZE + y][0 * SQRT_SIZE + x], bl[0 * SQRT_SIZE + y][2 * SQRT_SIZE + x]);
-            sys.equals(mid[2 * SQRT_SIZE + y][2 * SQRT_SIZE + x], br[0 * SQRT_SIZE + y][0 * SQRT_SIZE + x]);
+            sys.unify(mid[0 * SQRT_SIZE + y][0 * SQRT_SIZE + x], tl[2 * SQRT_SIZE + y][2 * SQRT_SIZE + x]);
+            sys.unify(mid[0 * SQRT_SIZE + y][2 * SQRT_SIZE + x], tr[2 * SQRT_SIZE + y][0 * SQRT_SIZE + x]);
+            sys.unify(mid[2 * SQRT_SIZE + y][0 * SQRT_SIZE + x], bl[0 * SQRT_SIZE + y][2 * SQRT_SIZE + x]);
+            sys.unify(mid[2 * SQRT_SIZE + y][2 * SQRT_SIZE + x], br[0 * SQRT_SIZE + y][0 * SQRT_SIZE + x]);
         }
     }
 
