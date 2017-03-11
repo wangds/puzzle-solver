@@ -55,7 +55,7 @@ Add Puzzle Solver as a dependency to your project's Cargo.toml:
 
 ```toml
 [dependencies]
-puzzle-solver = "0.2"
+puzzle-solver = "0.3"
 ```
 
 Import the library in your project, e.g.:

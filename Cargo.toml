@@ -1,6 +1,6 @@
 [package]
 name = "puzzle-solver"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["David Wang <millimillenary@gmail.com>"]
 homepage = "https://github.com/wangds/puzzle-solver.git"
 repository = "https://github.com/wangds/puzzle-solver.git"
@@ -8,7 +8,7 @@ documentation = "https://docs.rs/puzzle-solver/"
 description = "Solve logic puzzles by describing their constraints.  Suitable for puzzles such as Sudoku and Kakuro."
 license = "MIT"
 readme = "README.md"
-keywords = ["constraint", "puzzle", "sudoku"]
+keywords = ["constraint", "finite", "domain", "puzzle", "sudoku"]
 categories = ["science"]
 
 [dependencies]
