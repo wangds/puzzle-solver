@@ -30,6 +30,7 @@ A few example programs are provided in the `tests/` directory:
 * _N-queens problem_ - https://en.wikipedia.org/wiki/Eight_queens_puzzle
 * _Send More Money_ - https://en.wikipedia.org/wiki/Verbal_arithmetic
 * _Sudoku_ - https://en.wikipedia.org/wiki/Sudoku
+  * _Samurai Sudoku_
 * _Sujiko_ - https://en.wikipedia.org/wiki/Sujiko
 * _Zebra puzzle (Einstein's riddle)_ - https://en.wikipedia.org/wiki/Zebra_Puzzle
 
