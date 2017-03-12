@@ -13,6 +13,8 @@ categories = ["science"]
 
 [dependencies]
 bit-set = "0.4"
+num-rational = { version = "0.1", default-features = false }
+num-traits = "0.1"
 
 [badges]
 travis-ci = { repository = "wangds/puzzle-solver" }

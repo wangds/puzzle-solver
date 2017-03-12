@@ -2,6 +2,8 @@
 //! The puzzle rules are expressed as constraints.
 
 extern crate bit_set;
+extern crate num_rational;
+extern crate num_traits;
 
 use std::collections::HashMap;
 use std::ops::Index;
