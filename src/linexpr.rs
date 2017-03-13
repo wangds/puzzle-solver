@@ -5,7 +5,7 @@ use std::collections::hash_map::Entry;
 use std::convert::From;
 use std::ops::{Add,Mul,Neg,Sub};
 
-use ::{Coef,LinExpr,VarToken};
+use ::{LinExpr,VarToken};
 
 macro_rules! impl_commutative_op {
     ($LHS:ident + $RHS:ident) => {
@@ -33,8 +33,8 @@ macro_rules! impl_subtract_op {
 
 /*--------------------------------------------------------------*/
 
-impl From<Coef> for LinExpr {
-    fn from(constant: Coef) -> Self {
+impl From<i32> for LinExpr {
+    fn from(constant: i32) -> Self {
         LinExpr {
             constant: constant,
             coef: HashMap::new(),
@@ -65,26 +65,26 @@ impl Neg for VarToken {
     }
 }
 
-impl Add<Coef> for VarToken {
+impl Add<i32> for VarToken {
     type Output = LinExpr;
-    fn add(self, rhs: Coef) -> Self::Output {
+    fn add(self, rhs: i32) -> Self::Output {
         LinExpr::from(self) + rhs
     }
 }
 
-impl_commutative_op!(Coef + VarToken);
+impl_commutative_op!(i32 + VarToken);
 
-impl_subtract_op!(VarToken - Coef);
-impl_subtract_op!(Coef - VarToken);
+impl_subtract_op!(VarToken - i32);
+impl_subtract_op!(i32 - VarToken);
 
-impl Mul<Coef> for VarToken {
+impl Mul<i32> for VarToken {
     type Output = LinExpr;
-    fn mul(self, rhs: Coef) -> Self::Output {
+    fn mul(self, rhs: i32) -> Self::Output {
         LinExpr::from(self) * rhs
     }
 }
 
-impl_commutative_op!(Coef * VarToken);
+impl_commutative_op!(i32 * VarToken);
 
 /*--------------------------------------------------------------*/
 /* Var-Var                                                      */
@@ -110,22 +110,22 @@ impl Neg for LinExpr {
     }
 }
 
-impl Add<Coef> for LinExpr {
+impl Add<i32> for LinExpr {
     type Output = LinExpr;
-    fn add(mut self, rhs: Coef) -> Self::Output {
+    fn add(mut self, rhs: i32) -> Self::Output {
         self.constant = self.constant + rhs;
         self
     }
 }
 
-impl_commutative_op!(Coef + LinExpr);
+impl_commutative_op!(i32 + LinExpr);
 
-impl_subtract_op!(LinExpr - Coef);
-impl_subtract_op!(Coef - LinExpr);
+impl_subtract_op!(LinExpr - i32);
+impl_subtract_op!(i32 - LinExpr);
 
-impl Mul<Coef> for LinExpr {
+impl Mul<i32> for LinExpr {
     type Output = LinExpr;
-    fn mul(mut self, rhs: Coef) -> Self::Output {
+    fn mul(mut self, rhs: i32) -> Self::Output {
         if rhs == 0 {
             self.constant = 0;
             self.coef = HashMap::new();
@@ -140,7 +140,7 @@ impl Mul<Coef> for LinExpr {
     }
 }
 
-impl_commutative_op!(Coef * LinExpr);
+impl_commutative_op!(i32 * LinExpr);
 
 /*--------------------------------------------------------------*/
 /* Expr-Var                                                     */
