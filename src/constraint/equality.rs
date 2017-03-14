@@ -1,9 +1,10 @@
 //! Equality implementation.
 
 use std::rc::Rc;
+use num_rational::Ratio;
+use num_traits::Zero;
 
 use ::{Constraint,LinExpr,PsResult,PuzzleSearch,Val,VarToken};
-use intdiv::IntDiv;
 
 pub struct Equality {
     // The equation: 0 = constant + coef1 * var1 + coef2 * var2 + ...
@@ -42,7 +43,7 @@ impl Constraint for Equality {
 
         for (&var, &coef) in self.eqn.coef.iter() {
             if let Some(val) = search.get_assigned(var) {
-                sum += coef * val;
+                sum = sum + coef * Ratio::from_integer(val);
             } else {
                 // If we find more than one unassigned variable,
                 // cannot assign any other variables.
@@ -58,13 +59,13 @@ impl Constraint for Equality {
         if let Some((var, coef)) = unassigned_var {
             // sum + coef * var = 0.
             let val = -sum / coef;
-            if sum + coef * val == 0 {
-                try!(search.set_candidate(var, val));
+            if val.is_integer() {
+                try!(search.set_candidate(var, val.to_integer()));
             } else {
                 return Err(());
             }
         } else {
-            if sum != 0 {
+            if !sum.is_zero() {
                 return Err(());
             }
         }
@@ -78,12 +79,12 @@ impl Constraint for Equality {
 
         for (&var, &coef) in self.eqn.coef.iter() {
             let (min_val, max_val) = try!(search.get_min_max(var));
-            if coef > 0 {
-                sum_min += coef * min_val;
-                sum_max += coef * max_val;
+            if coef > Ratio::zero() {
+                sum_min = sum_min + coef * Ratio::from_integer(min_val);
+                sum_max = sum_max + coef * Ratio::from_integer(max_val);
             } else {
-                sum_min += coef * max_val;
-                sum_max += coef * min_val;
+                sum_min = sum_min + coef * Ratio::from_integer(max_val);
+                sum_max = sum_max + coef * Ratio::from_integer(min_val);
             }
         }
 
@@ -94,7 +95,7 @@ impl Constraint for Equality {
         let mut iter = self.eqn.coef.iter().cycle();
         while iters > 0 {
             iters = iters - 1;
-            if !(sum_min <= 0 && 0 <= sum_max) {
+            if !(sum_min <= Ratio::zero() && Ratio::zero() <= sum_max) {
                 return Err(());
             }
 
@@ -106,24 +107,24 @@ impl Constraint for Equality {
             let (min_val, max_val) = try!(search.get_min_max(var));
             let (min_bnd, max_bnd);
 
-            if coef > 0 {
-                min_bnd = (coef * max_val - sum_max).div_round_up(coef);
-                max_bnd = (coef * min_val - sum_min).div_round_down(coef);
+            if coef > Ratio::zero() {
+                min_bnd = ((coef * Ratio::from_integer(max_val) - sum_max) / coef).ceil().to_integer();
+                max_bnd = ((coef * Ratio::from_integer(min_val) - sum_min) / coef).floor().to_integer();
             } else {
-                min_bnd = (coef * max_val - sum_min).div_round_up(coef);
-                max_bnd = (coef * min_val - sum_max).div_round_down(coef);
+                min_bnd = ((coef * Ratio::from_integer(max_val) - sum_min) / coef).ceil().to_integer();
+                max_bnd = ((coef * Ratio::from_integer(min_val) - sum_max) / coef).floor().to_integer();
             }
 
             if min_val < min_bnd || max_bnd < max_val {
                 let (new_min, new_max)
                     = try!(search.bound_candidate_range(var, min_bnd, max_bnd));
 
-                if coef > 0 {
-                    sum_min = sum_min + coef * (new_min - min_val);
-                    sum_max = sum_max + coef * (new_max - max_val);
+                if coef > Ratio::zero() {
+                    sum_min = sum_min + coef * Ratio::from_integer(new_min - min_val);
+                    sum_max = sum_max + coef * Ratio::from_integer(new_max - max_val);
                 } else {
-                    sum_min = sum_min + coef * (new_max - max_val);
-                    sum_max = sum_max + coef * (new_min - min_val);
+                    sum_min = sum_min + coef * Ratio::from_integer(new_max - max_val);
+                    sum_max = sum_max + coef * Ratio::from_integer(new_min - min_val);
                 }
 
                 iters = self.eqn.coef.len();

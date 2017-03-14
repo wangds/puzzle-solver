@@ -7,6 +7,7 @@ extern crate num_traits;
 
 use std::collections::HashMap;
 use std::ops::Index;
+use num_rational::Rational32;
 
 pub use constraint::Constraint;
 pub use puzzle::Puzzle;
@@ -20,7 +21,7 @@ pub struct VarToken(usize);
 pub type Val = i32;
 
 /// The type of the coefficients in a linear expression.
-pub type Coef = i32;
+pub type Coef = Rational32;
 
 /// A linear expression.
 ///

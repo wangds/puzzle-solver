@@ -4,8 +4,10 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::convert::From;
 use std::ops::{Add,Mul,Neg,Sub};
+use num_rational::{Ratio,Rational32};
+use num_traits::{One,Zero};
 
-use ::{LinExpr,VarToken};
+use ::{Coef,LinExpr,VarToken};
 
 macro_rules! impl_commutative_op {
     ($LHS:ident + $RHS:ident) => {
@@ -31,12 +33,24 @@ macro_rules! impl_subtract_op {
     }
 }
 
+pub trait IntoCoef: Zero {
+    fn into_coef(self) -> Coef;
+}
+
+impl IntoCoef for i32 {
+    fn into_coef(self) -> Coef { Ratio::from_integer(self) }
+}
+
+impl IntoCoef for Rational32 {
+    fn into_coef(self) -> Coef { self }
+}
+
 /*--------------------------------------------------------------*/
 
-impl From<i32> for LinExpr {
-    fn from(constant: i32) -> Self {
+impl<T: IntoCoef> From<T> for LinExpr {
+    fn from(constant: T) -> Self {
         LinExpr {
-            constant: constant,
+            constant: constant.into_coef(),
             coef: HashMap::new(),
         }
     }
@@ -45,10 +59,10 @@ impl From<i32> for LinExpr {
 impl From<VarToken> for LinExpr {
     fn from(var: VarToken) -> Self {
         let mut coef = HashMap::new();
-        coef.insert(var, 1);
+        coef.insert(var, Ratio::one());
 
         LinExpr {
-            constant: 0,
+            constant: Ratio::zero(),
             coef: coef,
         }
     }
@@ -65,26 +79,30 @@ impl Neg for VarToken {
     }
 }
 
-impl Add<i32> for VarToken {
+impl<T: IntoCoef> Add<T> for VarToken {
     type Output = LinExpr;
-    fn add(self, rhs: i32) -> Self::Output {
+    fn add(self, rhs: T) -> Self::Output {
         LinExpr::from(self) + rhs
     }
 }
 
 impl_commutative_op!(i32 + VarToken);
+impl_commutative_op!(Rational32 + VarToken);
 
 impl_subtract_op!(VarToken - i32);
 impl_subtract_op!(i32 - VarToken);
+impl_subtract_op!(VarToken - Rational32);
+impl_subtract_op!(Rational32 - VarToken);
 
-impl Mul<i32> for VarToken {
+impl<T: IntoCoef> Mul<T> for VarToken {
     type Output = LinExpr;
-    fn mul(self, rhs: i32) -> Self::Output {
+    fn mul(self, rhs: T) -> Self::Output {
         LinExpr::from(self) * rhs
     }
 }
 
 impl_commutative_op!(i32 * VarToken);
+impl_commutative_op!(Rational32 * VarToken);
 
 /*--------------------------------------------------------------*/
 /* Var-Var                                                      */
@@ -110,29 +128,35 @@ impl Neg for LinExpr {
     }
 }
 
-impl Add<i32> for LinExpr {
+impl<T: IntoCoef> Add<T> for LinExpr {
     type Output = LinExpr;
-    fn add(mut self, rhs: i32) -> Self::Output {
-        self.constant = self.constant + rhs;
+    fn add(mut self, rhs: T) -> Self::Output {
+        self.constant = self.constant + rhs.into_coef();
         self
     }
 }
 
 impl_commutative_op!(i32 + LinExpr);
+impl_commutative_op!(Rational32 + LinExpr);
 
 impl_subtract_op!(LinExpr - i32);
 impl_subtract_op!(i32 - LinExpr);
+impl_subtract_op!(LinExpr - Rational32);
+impl_subtract_op!(Rational32 - LinExpr);
 
-impl Mul<i32> for LinExpr {
+impl<T: IntoCoef> Mul<T> for LinExpr {
     type Output = LinExpr;
-    fn mul(mut self, rhs: i32) -> Self::Output {
-        if rhs == 0 {
-            self.constant = 0;
+    fn mul(mut self, rhs: T) -> Self::Output {
+        if rhs.is_zero() {
+            self.constant = Ratio::zero();
             self.coef = HashMap::new();
-        } else if rhs != 1 {
-            self.constant = self.constant * rhs;
-            for coef in self.coef.values_mut() {
-                *coef *= rhs;
+        } else {
+            let rhs = rhs.into_coef();
+            if rhs != Ratio::one() {
+                self.constant = self.constant * rhs;
+                for coef in self.coef.values_mut() {
+                    *coef = *coef * rhs;
+                }
             }
         }
 
@@ -141,6 +165,7 @@ impl Mul<i32> for LinExpr {
 }
 
 impl_commutative_op!(i32 * LinExpr);
+impl_commutative_op!(Rational32 * LinExpr);
 
 /*--------------------------------------------------------------*/
 /* Expr-Var                                                     */
@@ -173,10 +198,11 @@ impl Add for LinExpr {
                     e.insert(a2);
                 },
                 Entry::Occupied(mut e) => {
-                    if *e.get() + a2 == 0 {
+                    let new_coef = *e.get() + a2;
+                    if new_coef.is_zero() {
                         e.remove();
                     } else {
-                        *e.get_mut() += a2;
+                        *e.get_mut() = new_coef;
                     }
                 },
             }
@@ -192,6 +218,7 @@ impl_subtract_op!(LinExpr - LinExpr);
 
 #[cfg(test)]
 mod tests {
+    use num_rational::Ratio;
     use ::Puzzle;
 
     #[test]
@@ -204,11 +231,17 @@ mod tests {
         let _ = x + 1;
         let _ = x - 1;
         let _ = x * 1;
+        let _ = x + Ratio::new(1, 2);
+        let _ = x - Ratio::new(1, 2);
+        let _ = x * Ratio::new(1, 2);
 
         // expr = const + var;
         let _ = 1 + x;
         let _ = 1 - x;
         let _ = 1 * x;
+        let _ = Ratio::new(1, 2) + x;
+        let _ = Ratio::new(1, 2) - x;
+        let _ = Ratio::new(1, 2) * x;
 
         // expr = var + var;
         let _ = -x;
@@ -219,11 +252,17 @@ mod tests {
         let _ = (x + y) + 1;
         let _ = (x + y) - 1;
         let _ = (x + y) * 1;
+        let _ = (x + y) + Ratio::new(1, 2);
+        let _ = (x + y) - Ratio::new(1, 2);
+        let _ = (x + y) * Ratio::new(1, 2);
 
         // expr = const + expr;
         let _ = 1 + (x + y);
         let _ = 1 - (x + y);
         let _ = 1 * (x + y);
+        let _ = Ratio::new(1, 2) + (x + y);
+        let _ = Ratio::new(1, 2) - (x + y);
+        let _ = Ratio::new(1, 2) * (x + y);
 
         // expr = expr + var;
         let _ = (x + 1) + y;
