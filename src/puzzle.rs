@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::iter;
 use std::mem;
-use std::ops::Index;
+use std::ops;
 use std::rc::Rc;
 use bit_set::BitSet;
 
@@ -82,7 +82,7 @@ impl Candidates {
         match self {
             &Candidates::None => Box::new(iter::empty()),
             &Candidates::Value(val) => Box::new(iter::once(val)),
-            &Candidates::Set(ref rc) => Box::new(rc.iter().map(|x| *x)),
+            &Candidates::Set(ref rc) => Box::new(rc.iter().cloned()),
         }
     }
 }
@@ -865,7 +865,7 @@ impl<'a> fmt::Debug for PuzzleSearch<'a> {
     }
 }
 
-impl<'a> Index<VarToken> for PuzzleSearch<'a> {
+impl<'a> ops::Index<VarToken> for PuzzleSearch<'a> {
     type Output = Val;
 
     /// Get the value assigned to a variable.

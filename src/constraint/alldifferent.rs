@@ -24,7 +24,7 @@ impl AllDifferent {
     pub fn new<'a, I>(vars: I) -> Self
             where I: IntoIterator<Item=&'a VarToken> {
         AllDifferent {
-            vars: vars.into_iter().map(|&x| x).collect(),
+            vars: vars.into_iter().cloned().collect(),
         }
     }
 }

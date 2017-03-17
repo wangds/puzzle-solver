@@ -5,12 +5,12 @@
 
 extern crate puzzle_solver;
 
-use puzzle_solver::{Puzzle,Solution,VarToken};
+use puzzle_solver::{Puzzle,Solution,Val,VarToken};
 
 const SQRT_SIZE: usize = 3;
 const SIZE: usize = 9;
-const X: i32 = -1;
-type Board = [[i32; SIZE + SQRT_SIZE + SIZE]; SIZE + SQRT_SIZE + SIZE];
+const X: Val = -1;
+type Board = [[Val; SIZE + SQRT_SIZE + SIZE]; SIZE + SQRT_SIZE + SIZE];
 type SudokuVars = Vec<Vec<VarToken>>;
 type SamuraiVars = (SudokuVars, SudokuVars, SudokuVars, SudokuVars, SudokuVars);
 

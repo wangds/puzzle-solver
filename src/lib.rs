@@ -6,7 +6,7 @@ extern crate num_rational;
 extern crate num_traits;
 
 use std::collections::HashMap;
-use std::ops::Index;
+use std::ops;
 use num_rational::Rational32;
 
 pub use constraint::Constraint;
@@ -52,7 +52,7 @@ pub mod constraint;
 mod linexpr;
 mod puzzle;
 
-impl Index<VarToken> for Solution {
+impl ops::Index<VarToken> for Solution {
     type Output = Val;
     fn index(&self, var: VarToken) -> &Val {
         let VarToken(idx) = var;

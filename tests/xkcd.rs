@@ -19,7 +19,8 @@ fn xkcd_knapsack() {
         (Ratio::new(3_35, 100), "Side Salad"),
         (Ratio::new(3_55, 100), "Hot Wings"),
         (Ratio::new(4_20, 100), "Mozzarella Sticks"),
-        (Ratio::new(5_80, 100), "Sampler Plate") ];
+        (Ratio::new(5_80, 100), "Sampler Plate"),
+    ];
 
     let mut sys = Puzzle::new();
     let mut vars = Vec::with_capacity(menu.len());
