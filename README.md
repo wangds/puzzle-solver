@@ -32,6 +32,7 @@ A few example programs are provided in the `tests/` directory:
 * _Sudoku_ - https://en.wikipedia.org/wiki/Sudoku
   * _Samurai Sudoku_
 * _Sujiko_ - https://en.wikipedia.org/wiki/Sujiko
+* _xkcd_ - https://xkcd.com/287/
 * _Zebra puzzle (Einstein's riddle)_ - https://en.wikipedia.org/wiki/Zebra_Puzzle
 
 To clone this repository, run:
