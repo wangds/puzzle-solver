@@ -28,10 +28,12 @@ A few example programs are provided in the `tests/` directory:
 * _Killer Sudoku_ - https://en.wikipedia.org/wiki/Killer_sudoku
 * _Magic Square_ - https://en.wikipedia.org/wiki/Magic_square
 * _N-queens problem_ - https://en.wikipedia.org/wiki/Eight_queens_puzzle
+* _Nonogram (Hanjie, Picross)_ - https://en.wikipedia.org/wiki/Nonogram
 * _Send More Money_ - https://en.wikipedia.org/wiki/Verbal_arithmetic
 * _Sudoku_ - https://en.wikipedia.org/wiki/Sudoku
   * _Samurai Sudoku_
 * _Sujiko_ - https://en.wikipedia.org/wiki/Sujiko
+* _Takuzu (Binairo)_ - https://en.wikipedia.org/wiki/Takuzu
 * _xkcd_ - https://xkcd.com/287/
 * _Zebra puzzle (Einstein's riddle)_ - https://en.wikipedia.org/wiki/Zebra_Puzzle
 
